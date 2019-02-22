@@ -29,14 +29,24 @@ class App extends StatefulWidget {
 
 class _AppState extends State<App> {
   final CounterBloc _counterBloc = CounterBloc();
+  final ThemeBloc _themeBloc = ThemeBloc();
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      home: BlocProvider<CounterBloc>(
-        bloc: _counterBloc,
-        child: CounterPage(),
+    return BlocProviderTree(
+      blocProviders: [
+        BlocProvider<CounterBloc>(bloc: _counterBloc),
+        BlocProvider<ThemeBloc>(bloc: _themeBloc)
+      ],
+      child: BlocBuilder(
+        bloc: _themeBloc,
+        builder: (_, ThemeData theme) {
+          return MaterialApp(
+            title: 'Flutter Demo',
+            home: CounterPage(),
+            theme: theme,
+          );
+        },
       ),
     );
   }
@@ -44,6 +54,7 @@ class _AppState extends State<App> {
   @override
   void dispose() {
     _counterBloc.dispose();
+    _themeBloc.dispose();
     super.dispose();
   }
 }
@@ -52,6 +63,7 @@ class CounterPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final CounterBloc _counterBloc = BlocProvider.of<CounterBloc>(context);
+    final ThemeBloc _themeBloc = BlocProvider.of<ThemeBloc>(context);
 
     return Scaffold(
       appBar: AppBar(title: Text('Counter')),
@@ -88,6 +100,15 @@ class CounterPage extends StatelessWidget {
               },
             ),
           ),
+          Padding(
+            padding: EdgeInsets.symmetric(vertical: 5.0),
+            child: FloatingActionButton(
+              child: Icon(Icons.update),
+              onPressed: () {
+                _themeBloc.dispatch(ThemeEvent.toggle);
+              },
+            ),
+          ),
         ],
       ),
     );
@@ -108,6 +129,27 @@ class CounterBloc extends Bloc<CounterEvent, int> {
         break;
       case CounterEvent.increment:
         yield currentState + 1;
+        break;
+    }
+  }
+}
+
+enum ThemeEvent { toggle }
+
+class ThemeBloc extends Bloc<ThemeEvent, ThemeData> {
+  @override
+  ThemeData get initialState => ThemeData.light();
+
+  @override
+  Stream<ThemeData> mapEventToState(
+    ThemeData currentState,
+    ThemeEvent event,
+  ) async* {
+    switch (event) {
+      case ThemeEvent.toggle:
+        yield currentState == ThemeData.dark()
+            ? ThemeData.light()
+            : ThemeData.dark();
         break;
     }
   }

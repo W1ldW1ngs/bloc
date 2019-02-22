@@ -15,9 +15,8 @@ class BlocProvider<T extends Bloc<dynamic, dynamic>> extends InheritedWidget {
   BlocProvider({
     Key key,
     @required this.bloc,
-    @required this.child,
+    this.child,
   })  : assert(bloc != null),
-        assert(child != null),
         super(key: key);
 
   /// Method that allows widgets to access the bloc as long as their `BuildContext`
@@ -39,10 +38,86 @@ class BlocProvider<T extends Bloc<dynamic, dynamic>> extends InheritedWidget {
     return provider?.bloc;
   }
 
+  /// Clone the current [BlocProvider] with a new child [Widget].
+  /// All other values, including [Key] and [Bloc] are preserved.
+  BlocProvider<T> copyWith(Widget child) {
+    return BlocProvider<T>(
+      key: key,
+      bloc: bloc,
+      child: child,
+    );
+  }
+
   /// Necessary to obtain generic [Type]
   /// https://github.com/dart-lang/sdk/issues/11923
   static Type _typeOf<T>() => T;
 
   @override
   bool updateShouldNotify(BlocProvider oldWidget) => false;
+}
+
+/// A [BlocProvider] that merges multiple [BlocProvider] widgets into one.
+///
+/// [BlocProviderTree] improves the readability and eliminates the need
+/// to nest multiple [BlocProviders].
+///
+/// By using [BlocProviderTree] we can go from:
+///
+/// ```dart
+/// BlocProvider<BlocA>(
+///   bloc: BlocA(),
+///   child: BlocProvider<BlocB>(
+///     bloc: BlocB(),
+///     child: BlocProvider<BlocC>(
+///       value: BlocC(),
+///       child: ChildA(),
+///     )
+///   )
+/// )
+/// ```
+///
+/// to:
+///
+/// ```dart
+/// BlocProviderTree(
+///   blocProviders: [
+///     BlocProvider<BlocA>(bloc: BlocA()),
+///     BlocProvider<BlocB>(bloc: BlocB()),
+///     BlocProvider<BlocC>(bloc: BlocC()),
+///   ],
+///   child: ChildA(),
+/// )
+/// ```
+///
+/// [BlocProviderTree] converts the [BlocProvider] list
+/// into a tree of nested [BlocProvider] widgets.
+/// As a result, the only advantage of using [BlocProviderTree] is improved
+/// readability due to the reduction in nesting.
+class BlocProviderTree extends StatelessWidget {
+  /// The [BlocProvider] list which is converted into a tree of [BlocProvider] widgets.
+  /// The tree of [BlocProvider] widgets is created in order meaning the first [BlocProvider]
+  /// will be the top-most [BlocProvider] and the last [BlocProvider] will be the parent
+  /// of the `child` [Widget].
+  final List<BlocProvider> blocProviders;
+
+  /// The [Widget] and its descendants which will have access every [Bloc] provided by `blocProviders`.
+  /// This [Widget] will be a direct descendent of the last [BlocProvider] in `blocProviders`.
+  final Widget child;
+
+  BlocProviderTree({
+    Key key,
+    @required this.blocProviders,
+    @required this.child,
+  })  : assert(blocProviders != null),
+        assert(child != null),
+        super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    Widget tree = child;
+    for (final blocProvider in blocProviders.reversed) {
+      tree = blocProvider.copyWith(tree);
+    }
+    return tree;
+  }
 }
